@@ -155,6 +155,10 @@ export function SettingsTab({ store, onChangeState }: Props) {
           Questions from the official BAMF catalog “Gesamtfragenkatalog zum Test Leben in Deutschland” (as of 07.05.2025).
           Translations are unofficial. Answers were checked against the official BAMF online tool on 15.10.2026.
         </p>
+        <p className="muted small">
+          Anonymous usage stats (which screens and practice sessions are opened, mock exam scores, the chosen state and translation language) are counted with Umami. No
+          cookies, no personal data; your progress stays in this browser.
+        </p>
         <p className="muted small">Version {__APP_VERSION__}</p>
         <p className="small">Spotted a wrong answer or an odd translation, or have an idea? Let me know.</p>
         <div className="actions">

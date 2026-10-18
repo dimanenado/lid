@@ -4,6 +4,7 @@ import { BY_ID, GENERAL, PASS, STATES, questionRef, shuffle, stateQuestions } fr
 import { ExamSummaryCard } from './ExamStats'
 import { QuestionCard } from './QuestionCard'
 import { Store } from './store'
+import { trackEvent } from './analytics'
 import { useConfirm } from './hooks'
 import { LangToggle, TransQuestion } from './ui'
 
@@ -133,6 +134,12 @@ function Exam({ store, onExit, onRetake, onPractise }: ExamProps) {
       total: ids.length,
       seconds: Math.floor((end - start) / 1000),
       answers: ids.map((id, i) => [id, answers[i]]),
+    })
+    trackEvent('exam-finished', {
+      state: store.p.state,
+      score,
+      passed: score >= PASS,
+      translation: store.p.showTranslation ? store.p.lang : 'off',
     })
     setFinished(end)
     window.scrollTo({ top: 0 })

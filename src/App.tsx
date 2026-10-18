@@ -7,6 +7,7 @@ import { Practice } from './Practice'
 import { ProgressTab } from './ProgressTab'
 import { Search } from './Search'
 import { SettingsTab } from './SettingsTab'
+import { trackEvent, trackView } from './analytics'
 import { useTheme } from './hooks'
 import { TranslationProvider } from './TranslationProvider'
 import { useProgress } from './store'
@@ -36,6 +37,8 @@ export default function App() {
   const [fullscreen, setFullscreen] = useState(false)
   const [picker, setPicker] = useState(false)
 
+  useEffect(trackView, [tab])
+
   // the URL hash mirrors the tab so Back works and a reload keeps the tab
   useEffect(() => {
     const onHash = () => {
@@ -52,10 +55,12 @@ export default function App() {
     window.scrollTo({ top: 0 })
   }
 
+  const translation = p.showTranslation ? p.lang : 'off'
   const start = useCallback((title: string, ids: string[]) => {
+    trackEvent('practice-started', { kind: title, questions: ids.length, translation })
     setSession((s) => ({ title, ids, n: (s?.n ?? 0) + 1 }))
     window.scrollTo({ top: 0 })
-  }, [])
+  }, [translation])
 
   const practise = (title: string, qs: typeof QUESTIONS, forceShuffle = false) =>
     start(title, (p.shuffle || forceShuffle ? shuffle(qs) : qs).map((q) => q.id))
