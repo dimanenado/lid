@@ -7,6 +7,7 @@ import { Practice } from './Practice'
 import { ProgressTab } from './ProgressTab'
 import { Search } from './Search'
 import { SettingsTab } from './SettingsTab'
+import { trackView } from './analytics'
 import { useTheme } from './hooks'
 import { TranslationProvider } from './TranslationProvider'
 import { useProgress } from './store'
@@ -35,6 +36,8 @@ export default function App() {
   // a running exam or an exam review takes the whole screen
   const [fullscreen, setFullscreen] = useState(false)
   const [picker, setPicker] = useState(false)
+
+  useEffect(trackView, [tab])
 
   // the URL hash mirrors the tab so Back works and a reload keeps the tab
   useEffect(() => {
