@@ -3,6 +3,7 @@ import { Check, Languages, MapPin, X } from 'lucide-react'
 import { Question, STATES } from './data'
 import { LANGS, TransLang, useTranslation } from './i18n'
 import type { Store } from './store'
+import { trackEvent } from './analytics'
 
 /** Horizontal progress bar; value 0..1. */
 export function Meter({ value, tone = 'ok', label }: { value: number; tone?: 'ok' | 'accent'; label?: string }) {
@@ -139,6 +140,7 @@ export function LangPicker({ store, onClose }: { store: Store; onClose: () => vo
               data-autofocus={code === current ? true : undefined}
               onClick={() => {
                 store.update(code === 'off' ? { showTranslation: false } : { showTranslation: true, lang: code })
+                if (code !== current) trackEvent('translation-changed', { from: current, to: code })
                 onClose()
               }}
             >

@@ -135,7 +135,12 @@ function Exam({ store, onExit, onRetake, onPractise }: ExamProps) {
       seconds: Math.floor((end - start) / 1000),
       answers: ids.map((id, i) => [id, answers[i]]),
     })
-    trackEvent('exam-finished', { state: store.p.state, score, passed: score >= PASS })
+    trackEvent('exam-finished', {
+      state: store.p.state,
+      score,
+      passed: score >= PASS,
+      translation: store.p.showTranslation ? store.p.lang : 'off',
+    })
     setFinished(end)
     window.scrollTo({ top: 0 })
   }
