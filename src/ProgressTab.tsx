@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { GENERAL, STATES, TOPIC_SHORT, stateQuestions } from './data'
-import { ExamReview, ExamStats } from './ExamStats'
+import { ExamStats, PastExam } from './ExamStats'
 import { ExamResult, isMastered, isMistake, Store } from './store'
 import { Meter } from './ui'
 
 interface Props {
   store: Store
   onPractise: (title: string, ids: string[]) => void
-  /** hides the app's top bar and tabs while a past exam is reviewed */
+  /** hides the app's top bar and tabs while a past exam is open */
   onFullscreen: (on: boolean) => void
 }
 
@@ -18,7 +18,7 @@ export function ProgressTab({ store, onPractise, onFullscreen }: Props) {
 
   useEffect(() => () => onFullscreen(false), [onFullscreen])
 
-  const review = (e: ExamResult) => {
+  const open = (e: ExamResult) => {
     scrollBack.current = window.scrollY
     onFullscreen(true)
     setReviewing(e)
@@ -27,9 +27,10 @@ export function ProgressTab({ store, onPractise, onFullscreen }: Props) {
 
   if (reviewing)
     return (
-      <ExamReview
+      <PastExam
         exam={reviewing}
         store={store}
+        onPractise={onPractise}
         onBack={() => {
           onFullscreen(false)
           setReviewing(null)
@@ -67,7 +68,7 @@ export function ProgressTab({ store, onPractise, onFullscreen }: Props) {
         </div>
       </section>
 
-      <ExamStats store={store} onPractise={onPractise} onReview={review} />
+      <ExamStats store={store} onPractise={onPractise} onOpen={open} />
     </div>
   )
 }

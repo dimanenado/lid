@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight, Clock, RotateCcw, Trophy } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronLeft, ChevronRight, Clock, RotateCcw, Trophy, X } from 'lucide-react'
+import { ReactNode, useState } from 'react'
 import { BY_ID, PASS, STATES, TOPIC_SHORT, questionRef } from './data'
 import { QuestionCard } from './QuestionCard'
 import { ExamResult, Store } from './store'
@@ -11,8 +11,8 @@ const passed = (e: ExamResult) => e.score >= PASS
 const minutes = (s: number) => Math.max(1, Math.round(s / 60))
 const fmtDate = (d: number) => new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 
-/** Score bars, oldest left, with the pass line. */
-function ScoreChart({ exams, compact = false }: { exams: ExamResult[]; compact?: boolean }) {
+/** Score bars, oldest left, with the pass line. With onOpen each bar opens its attempt. */
+function ScoreChart({ exams, compact = false, onOpen }: { exams: ExamResult[]; compact?: boolean; onOpen?: (e: ExamResult) => void }) {
   const shown = exams.slice(0, compact ? 10 : CHART_MAX).reverse()
   const total = shown[0]?.total ?? 33
   return (
@@ -26,16 +26,131 @@ function ScoreChart({ exams, compact = false }: { exams: ExamResult[]; compact?:
       )}
       <div
         className="chart-plot"
-        role="img"
+        role={onOpen ? 'group' : 'img'}
         aria-label={`Scores of your last ${shown.length} exams: ${shown.map((e) => e.score).join(', ')}`}
       >
         <i className="pass-line" style={{ bottom: `${(PASS / total) * 100}%` }} />
-        {shown.map((e) => (
-          <span key={e.date} className="chart-col" title={`${e.score} / ${e.total}, ${fmtDate(e.date)}`}>
-            <i className={passed(e) ? 'ok' : 'bad'} style={{ height: `${Math.max(3, (e.score / e.total) * 100)}%` }} />
-          </span>
-        ))}
+        {shown.map((e) => {
+          const label = `${e.score} / ${e.total}, ${fmtDate(e.date)}`
+          const bar = <i className={passed(e) ? 'ok' : 'bad'} style={{ height: `${Math.max(3, (e.score / e.total) * 100)}%` }} />
+          return onOpen ? (
+            <button
+              key={e.date}
+              className="chart-col"
+              title={label}
+              aria-label={`Exam on ${fmtDate(e.date)}: ${e.score} of ${e.total}, ${passed(e) ? 'passed' : 'not passed'}`}
+              onClick={() => onOpen(e)}
+            >
+              {bar}
+            </button>
+          ) : (
+            <span key={e.date} className="chart-col" title={label}>
+              {bar}
+            </span>
+          )
+        })}
       </div>
+    </div>
+  )
+}
+
+interface ResultsProps {
+  title: string
+  seconds: number
+  score: number
+  total: number
+  /** [question id, chosen option or null]; missing on exams saved without answers */
+  answers?: [string, number | null][]
+  closeLabel: string
+  onClose: () => void
+  onReview: (i: number) => void
+  dock: ReactNode
+}
+
+/** Results screen of one exam: score with the pass track, question grid, and missed questions. */
+export function ExamResults({ title, seconds, score, total, answers, closeLabel, onClose, onReview, dock }: ResultsProps) {
+  const ok = score >= PASS
+  const missed = answers?.map(([id, c], i) => ({ q: BY_ID.get(id)!, i, c })).filter(({ q, c }) => c !== q.correct) ?? []
+  return (
+    <div className="session session-narrow">
+      <header className="sessbar">
+        <div className="sessbar-in">
+          <button className="icon-btn" aria-label={closeLabel} onClick={onClose}>
+            <X size={18} />
+          </button>
+          <strong className="sess-title">{title}</strong>
+          <span className="chip">
+            <Clock size={14} aria-hidden /> {minutes(seconds)} min
+          </span>
+        </div>
+      </header>
+      <main className="page">
+        <div className="stack">
+          <section className="result-card">
+            <span className={`chip ${ok ? 'chip-ok' : 'chip-bad'}`}>{ok ? 'Passed' : 'Not passed'}</span>
+            <div className="big-score">
+              {score} <small>/ {total}</small>
+            </div>
+            <div className="pass-track" aria-hidden>
+              <i className={ok ? 'ok' : 'bad'} style={{ width: `${(score / total) * 100}%` }} />
+              <b style={{ left: `${(PASS / total) * 100}%` }} />
+            </div>
+            <div className="pass-legend" aria-hidden>
+              <span>0</span>
+              <span>{PASS} needed to pass</span>
+              <span>{total}</span>
+            </div>
+          </section>
+
+          {answers ? (
+            <section className="stack-sm">
+              <h2 className="label">Tap a question to review</h2>
+              <nav className="qgrid" aria-label="Questions">
+                {answers.map(([id, c], i) => {
+                  const right = c === BY_ID.get(id)!.correct
+                  return (
+                    <button
+                      key={id}
+                      className={right ? 'correct' : 'wrong'}
+                      aria-label={`Question ${i + 1}, ${right ? 'correct' : 'wrong'}`}
+                      onClick={() => onReview(i)}
+                    >
+                      {i + 1}
+                    </button>
+                  )
+                })}
+              </nav>
+            </section>
+          ) : (
+            <div className="panel muted small">The answers of this exam were not saved, so only the score is shown.</div>
+          )}
+
+          {missed.length > 0 && (
+            <section className="stack-sm">
+              <h2 className="label">You missed</h2>
+              <ul className="rows">
+                {missed.map(({ q, i }) => (
+                  <li key={q.id}>
+                    <button className="row-btn" onClick={() => onReview(i)}>
+                      <span className="row-main">
+                        <span className="clamp-2" lang="de">
+                          {q.de.q}
+                        </span>
+                        <TransQuestion q={q} className="en clamp-2" />
+                      </span>
+                      <small className="muted">{questionRef(q)}</small>
+                      <ChevronRight size={18} aria-hidden className="muted" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      </main>
+      <footer className="dock">
+        <div className="dock-in">{dock}</div>
+      </footer>
     </div>
   )
 }
@@ -72,11 +187,11 @@ export function ExamSummaryCard({ exams, onOpen }: { exams: ExamResult[]; onOpen
 interface StatsProps {
   store: Store
   onPractise: (title: string, ids: string[]) => void
-  onReview: (exam: ExamResult) => void
+  onOpen: (exam: ExamResult) => void
 }
 
 /** Exam statistics for the Progress tab: totals, score chart, topic accuracy, most missed questions, and every attempt. */
-export function ExamStats({ store, onPractise, onReview }: StatsProps) {
+export function ExamStats({ store, onPractise, onOpen }: StatsProps) {
   const exams = store.p.exams
   if (!exams.length)
     return (
@@ -143,7 +258,7 @@ export function ExamStats({ store, onPractise, onReview }: StatsProps) {
       <section className="stack-sm">
         <h2 className="label">Exam scores{n > CHART_MAX ? ` · last ${CHART_MAX}` : ''}</h2>
         <div className="panel">
-          <ScoreChart exams={exams} />
+          <ScoreChart exams={exams} onOpen={onOpen} />
           <div className="chart-legend">
             <span>Oldest</span>
             <span>
@@ -218,9 +333,9 @@ export function ExamStats({ store, onPractise, onReview }: StatsProps) {
       <section className="stack-sm">
         <h2 className="label">All attempts</h2>
         <ul className="list">
-          {exams.map((e) => {
-            const inner = (
-              <>
+          {exams.map((e) => (
+            <li key={e.date}>
+              <button className="list-row" onClick={() => onOpen(e)}>
                 <span className={`chip ${passed(e) ? 'chip-ok' : 'chip-bad'}`}>{passed(e) ? 'Passed' : 'Not passed'}</span>
                 <span className="row-main">
                   <b className="tnum">
@@ -232,35 +347,75 @@ export function ExamStats({ store, onPractise, onReview }: StatsProps) {
                   </small>
                 </span>
                 {e.score === best && <Trophy size={16} aria-label="Best score" className="trophy" />}
-                {e.answers && <ChevronRight size={18} aria-hidden className="muted" />}
-              </>
-            )
-            return (
-              <li key={e.date}>
-                {e.answers ? (
-                  <button className="list-row" onClick={() => onReview(e)}>
-                    {inner}
-                  </button>
-                ) : (
-                  <div className="list-row static">{inner}</div>
-                )}
-              </li>
-            )
-          })}
+                <ChevronRight size={18} aria-hidden className="muted" />
+              </button>
+            </li>
+          ))}
         </ul>
       </section>
     </>
   )
 }
 
+interface PastProps {
+  exam: ExamResult
+  store: Store
+  onBack: () => void
+  onPractise: (title: string, ids: string[]) => void
+}
+
+/** One past exam: its results screen, and a read-only walk through the answers given. */
+export function PastExam({ exam, store, onBack, onPractise }: PastProps) {
+  const answers = exam.answers?.filter(([id]) => BY_ID.has(id))
+  const [review, setReview] = useState<number | null>(null)
+
+  if (answers && review !== null)
+    return <ExamReview exam={exam} answers={answers} idx={review} onGo={setReview} store={store} onBack={() => setReview(null)} />
+
+  const missed = answers?.filter(([id, c]) => c !== BY_ID.get(id)!.correct).map(([id]) => id) ?? []
+  return (
+    <ExamResults
+      title={`${fmtDate(exam.date)} · ${STATES[exam.state]}`}
+      seconds={exam.seconds}
+      score={exam.score}
+      total={exam.total}
+      answers={answers}
+      closeLabel="Back to progress"
+      onClose={onBack}
+      onReview={(i) => {
+        setReview(i)
+        window.scrollTo({ top: 0 })
+      }}
+      dock={
+        missed.length > 0 ? (
+          <button className="btn btn-primary grow" onClick={() => onPractise('Missed in mock exam', missed)}>
+            Practise the {missed.length} I missed
+          </button>
+        ) : (
+          <button className="btn btn-primary grow" onClick={onBack}>
+            Done
+          </button>
+        )
+      }
+    />
+  )
+}
+
+interface ReviewProps {
+  exam: ExamResult
+  answers: [string, number | null][]
+  idx: number
+  onGo: (i: number) => void
+  store: Store
+  onBack: () => void
+}
+
 /** Read-only walk through one past exam with the answers given. */
-export function ExamReview({ exam, store, onBack }: { exam: ExamResult; store: Store; onBack: () => void }) {
-  const answers = exam.answers!.filter(([id]) => BY_ID.has(id))
-  const [idx, setIdx] = useState(0)
+function ExamReview({ exam, answers, idx, onGo, store, onBack }: ReviewProps) {
   const [id, chosen] = answers[idx]
   const q = BY_ID.get(id)!
   const go = (i: number) => {
-    setIdx(i)
+    onGo(i)
     window.scrollTo({ top: 0 })
   }
 
@@ -268,7 +423,7 @@ export function ExamReview({ exam, store, onBack }: { exam: ExamResult; store: S
     <div className="session">
       <header className="sessbar">
         <div className="sessbar-in">
-          <button className="icon-btn" aria-label="Back to progress" onClick={onBack}>
+          <button className="icon-btn" aria-label="Back to results" onClick={onBack}>
             <ChevronLeft size={18} />
           </button>
           <strong className="sess-title">

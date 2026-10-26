@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Clock, Flag, Grid3x3, Play, RotateCcw, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { BY_ID, GENERAL, PASS, STATES, questionRef, shuffle, stateQuestions } from './data'
-import { ExamSummaryCard } from './ExamStats'
+import { ExamResults, ExamSummaryCard } from './ExamStats'
 import { QuestionCard } from './QuestionCard'
 import { Store } from './store'
 import { trackEvent } from './analytics'
@@ -205,71 +205,18 @@ function Exam({ store, onExit, onRetake, onPractise }: ExamProps) {
   /* ---------- results ---------- */
   if (finished && review === null) {
     const missed = ids.filter((_, i) => !correct(i))
-    const passed = score >= PASS
     return (
-      <div className="session session-narrow">
-        <header className="sessbar">
-          <div className="sessbar-in">
-            <button className="icon-btn" aria-label="Close results" onClick={onExit}>
-              <X size={18} />
-            </button>
-            <strong className="sess-title">Mock exam · {STATES[store.p.state]}</strong>
-            <span className="chip">
-              <Clock size={14} aria-hidden /> {Math.max(1, Math.round(elapsed / 60))} min
-            </span>
-          </div>
-        </header>
-        <main className="page">
-          <div className="stack">
-            <section className="result-card">
-              <span className={`chip ${passed ? 'chip-ok' : 'chip-bad'}`}>{passed ? 'Passed' : 'Not passed'}</span>
-              <div className="big-score">
-                {score} <small>/ {ids.length}</small>
-              </div>
-              <div className="pass-track" aria-hidden>
-                <i className={passed ? 'ok' : 'bad'} style={{ width: `${(score / ids.length) * 100}%` }} />
-                <b style={{ left: `${(PASS / ids.length) * 100}%` }} />
-              </div>
-              <div className="pass-legend" aria-hidden>
-                <span>0</span>
-                <span>{PASS} needed to pass</span>
-                <span>{ids.length}</span>
-              </div>
-            </section>
-
-            <section className="stack-sm">
-              <h2 className="label">Tap a question to review</h2>
-              {grid}
-            </section>
-
-            {missed.length > 0 && (
-              <section className="stack-sm">
-                <h2 className="label">You missed</h2>
-                <ul className="rows">
-                  {missed.map((id) => {
-                    const q = BY_ID.get(id)!
-                    return (
-                      <li key={id}>
-                        <button className="row-btn" onClick={() => setReview(ids.indexOf(id))}>
-                          <span className="row-main">
-                            <span className="clamp-2" lang="de">
-                              {q.de.q}
-                            </span>
-                            <TransQuestion q={q} className="en clamp-2" />
-                          </span>
-                          <small className="muted">{questionRef(q)}</small>
-                          <ChevronRight size={18} aria-hidden className="muted" />
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
-            )}
-          </div>
-        </main>
-        <footer className="dock">
-          <div className="dock-in">
+      <ExamResults
+        title={`Mock exam · ${STATES[store.p.state]}`}
+        seconds={elapsed}
+        score={score}
+        total={ids.length}
+        answers={ids.map((id, i) => [id, answers[i]])}
+        closeLabel="Close results"
+        onClose={onExit}
+        onReview={setReview}
+        dock={
+          <>
             <button className="btn btn-secondary" onClick={onRetake}>
               <RotateCcw size={16} aria-hidden /> New exam
             </button>
@@ -282,9 +229,9 @@ function Exam({ store, onExit, onRetake, onPractise }: ExamProps) {
                 Done
               </button>
             )}
-          </div>
-        </footer>
-      </div>
+          </>
+        }
+      />
     )
   }
 
