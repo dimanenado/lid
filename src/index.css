@@ -446,6 +446,7 @@ a.btn { text-decoration: none; }
 .chart-col i { display: block; width: 100%; border-radius: 4px 4px 0 0; }
 .chart-col i.ok { background: var(--ok); }
 .chart-col i.bad { background: var(--bad); }
+button.chart-col:hover i { filter: brightness(1.12); }
 .pass-line { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px dashed var(--text); opacity: 0.55; z-index: 1; pointer-events: none; }
 .chart-legend { display: flex; justify-content: space-between; font-size: var(--fs-xs); color: var(--muted); padding-left: 30px; }
 .legend-line { display: inline-block; width: 16px; vertical-align: middle; border-top: 1.5px dashed var(--text); opacity: 0.55; margin-right: 4px; }
