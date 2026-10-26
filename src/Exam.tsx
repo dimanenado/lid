@@ -1,12 +1,12 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Clock, Flag, Grid3x3, Play, RotateCcw, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { BY_ID, GENERAL, PASS, STATES, questionRef, shuffle, stateQuestions } from './data'
+import { BY_ID, GENERAL, PASS, STATES, shuffle, stateQuestions } from './data'
 import { ExamResults, ExamSummaryCard } from './ExamStats'
 import { QuestionCard } from './QuestionCard'
 import { Store } from './store'
 import { trackEvent } from './analytics'
 import { useConfirm } from './hooks'
-import { LangToggle, TransQuestion } from './ui'
+import { LangToggle } from './ui'
 
 const LIMIT = 60 * 60
 
