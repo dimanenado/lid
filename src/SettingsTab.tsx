@@ -1,7 +1,8 @@
-import { ChevronRight, Download, Languages, MapPin, MessageSquare, RotateCcw, Upload } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { ChevronRight, CloudOff, Download, Languages, MapPin, MessageSquare, RefreshCw, RotateCcw, Upload } from 'lucide-react'
+import { useRef, useState, useSyncExternalStore } from 'react'
 import { STATES } from './data'
 import { feedbackUrl } from './feedback'
+import { OfflineStatus, removeOffline, syncOffline, useOfflineStatus } from './offline'
 import { LANGS } from './i18n'
 import { Store, Theme, translationSettings } from './store'
 import { useConfirm, useToast } from './hooks'
@@ -122,6 +123,8 @@ export function SettingsTab({ store, onChangeState }: Props) {
         </div>
       </section>
 
+      <OfflineSection store={store} />
+
       <section className="stack-sm">
         <h2 className="label">Your data</h2>
         <p className="muted small">Progress is saved in this browser only. Export it to move it to another device.</p>
@@ -168,5 +171,84 @@ export function SettingsTab({ store, onChangeState }: Props) {
         </div>
       </section>
     </div>
+  )
+}
+
+const mb = (bytes: number) => `${(bytes / 1e6).toFixed(1)} MB`
+
+function offlineText(s: OfflineStatus, on: boolean, online: boolean): string {
+  switch (s.kind) {
+    case 'unsupported':
+      return 'This browser cannot save the app for offline use'
+    case 'dev':
+      return 'Works in the published app only'
+    case 'none':
+      return on ? (online ? 'Not downloaded yet' : 'Downloads when you are back online') : 'Not downloaded'
+    case 'downloading':
+      return `Downloading… ${s.done} of ${s.total} files`
+    case 'paused':
+      return `Paused at ${s.done} of ${s.total} files, continues when the connection is back`
+    case 'ready':
+      return `Ready offline · ${mb(s.bytes)} · updated ${new Date(s.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
+  }
+}
+
+/** switch for the offline copy, with what is saved and a button to check for updates now */
+function OfflineSection({ store }: { store: Store }) {
+  const { p, update } = store
+  const s = useOfflineStatus()
+  const online = useOnline()
+  const busy = s.kind === 'downloading'
+  const usable = s.kind !== 'unsupported' && s.kind !== 'dev'
+
+  const toggle = (v: boolean) => {
+    update({ offline: v })
+    if (!v) removeOffline()
+  }
+
+  return (
+    <section className="stack-sm">
+      <h2 className="label">Offline use</h2>
+      <div className="list">
+        <Switch
+          id="set-offline"
+          label="Save for offline use"
+          hint="Downloads all questions, translations and images in the background, so the app works with a weak or no connection"
+          checked={p.offline && usable}
+          onChange={toggle}
+        />
+        <div className="setting static" role="status">
+          {!online && <CloudOff size={18} aria-hidden className="list-icon" />}
+          <span className="setting-text">
+            <span>{online ? 'Status' : 'You are offline'}</span>
+            <small>{offlineText(s, p.offline, online)}</small>
+            {(busy || s.kind === 'paused') && (
+              <span className="meter meter-accent" aria-hidden>
+                <i style={{ width: `${(100 * s.done) / s.total}%` }} />
+              </span>
+            )}
+          </span>
+          {p.offline && usable && (
+            <button className="btn btn-secondary btn-sm" disabled={busy || !online} onClick={() => syncOffline()}>
+              <RefreshCw size={16} aria-hidden /> {s.kind === 'paused' ? 'Retry' : s.kind === 'ready' ? 'Check' : 'Download'}
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function useOnline() {
+  return useSyncExternalStore(
+    (l) => {
+      window.addEventListener('online', l)
+      window.addEventListener('offline', l)
+      return () => {
+        window.removeEventListener('online', l)
+        window.removeEventListener('offline', l)
+      }
+    },
+    () => navigator.onLine,
   )
 }

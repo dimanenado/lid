@@ -34,6 +34,8 @@ export interface Progress {
   shuffle: boolean
   /** highlight key words in questions and answers */
   keywords: boolean
+  /** keep a copy of the whole app in the browser so it works without internet */
+  offline: boolean
   /** the user picked a state at least once; hides the welcome screen */
   onboarded: boolean
   stats: Record<string, QStat>
@@ -41,7 +43,7 @@ export interface Progress {
 }
 
 const KEY = 'lid-prep:v1'
-const DEFAULT: Progress = { state: 'BE', theme: 'system', showTranslation: true, lang: 'en', shuffle: true, keywords: true, onboarded: false, stats: {}, exams: [] }
+const DEFAULT: Progress = { state: 'BE', theme: 'system', showTranslation: true, lang: 'en', shuffle: true, keywords: true, offline: true, onboarded: false, stats: {}, exams: [] }
 
 /** Translation settings from saved or imported progress; older saves only have "showEnglish". */
 export function translationSettings(data: Record<string, unknown>): Pick<Progress, 'showTranslation' | 'lang'> {

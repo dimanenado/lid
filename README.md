@@ -8,6 +8,7 @@ Practice app for the German "Leben in Deutschland" test and the Einbürgerungste
 - Key words: the words that link a question to its answer are highlighted, negations ("nicht", "kein") stand out in red, and after answering, a "Don't mix up" box lists look-alike questions with their different answers. Can be turned off in Settings.
 - Browse and search all questions in German or the chosen translation.
 - Progress is stored in the browser; export/import it as a JSON file.
+- Works offline: a service worker (`public/sw.js`) serves the app from the browser cache, and by default the whole app (about 3.5 MB of code, translations and images) is downloaded in the background. Settings → Offline use turns this off and shows what is saved. The build writes `offline-manifest.json` listing every file with a content hash, so after a deploy only changed files are downloaded again.
 
 ## Data
 

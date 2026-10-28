@@ -11,6 +11,7 @@ import { trackEvent, trackView } from './analytics'
 import { useTheme } from './hooks'
 import { TranslationProvider } from './TranslationProvider'
 import { useProgress } from './store'
+import { syncOffline } from './offline'
 import { StatePicker } from './ui'
 
 // settings is reached from the gear in the top bar, not from the tabs
@@ -38,6 +39,17 @@ export default function App() {
   const [picker, setPicker] = useState(false)
 
   useEffect(trackView, [tab])
+
+  // download the offline copy in the background a moment after start, and again when the connection returns
+  useEffect(() => {
+    if (!p.offline) return
+    const t = setTimeout(syncOffline, 3000)
+    window.addEventListener('online', syncOffline)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('online', syncOffline)
+    }
+  }, [p.offline])
 
   // the URL hash mirrors the tab so Back works and a reload keeps the tab
   useEffect(() => {
