@@ -1,7 +1,7 @@
 import { ArrowRight, BookOpen, Flame, Landmark, RotateCcw, Scale, Shuffle, Sparkles, Users } from 'lucide-react'
 import { GENERAL, QUESTIONS, STATES, TOPIC_SHORT, stateQuestions } from './data'
 import { isMastered, isMistake, Store } from './store'
-import { Meter } from './ui'
+import { InfoLabel, MASTERED_HINT, Meter } from './ui'
 
 const TOPIC_ICON = { politics: Scale, history: Landmark, society: Users }
 
@@ -44,7 +44,7 @@ export function Learn({ store, practise }: Props) {
   return (
     <div className="stack">
       <section className="hero">
-        <span className="hero-label">Mastered</span>
+        <InfoLabel label={<span className="hero-label">Mastered</span>} hint={MASTERED_HINT} />
         <div className="hero-num">
           {mastered} <small>/ {pool.length}</small>
         </div>

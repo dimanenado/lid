@@ -66,6 +66,15 @@ a.btn { text-decoration: none; }
   border-radius: var(--r-ctl); background: var(--surface); color: var(--text);
 }
 .icon-btn:hover { background: var(--surface-2); }
+/* label with a tap-to-reveal explanation */
+.info-label { display: grid; gap: var(--s1); }
+.info-head { display: flex; align-items: center; gap: 2px; }
+.info-btn {
+  display: grid; place-items: center; width: 32px; height: 32px; margin: -8px -6px -8px 0;
+  border-radius: var(--r-pill); color: inherit; opacity: 0.7;
+}
+.info-btn:hover, .info-btn[aria-expanded='true'] { opacity: 1; }
+.info-text { font-size: var(--fs-sm); font-weight: 400; line-height: 1.4; max-width: 40ch; }
 .icon-btn-sm { width: 28px; height: 28px; background: var(--surface-2); }
 
 .chip {
