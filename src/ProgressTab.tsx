@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { GENERAL, STATES, TOPIC_SHORT, stateQuestions } from './data'
 import { ExamStats, PastExam } from './ExamStats'
 import { ExamResult, isMastered, isMistake, Store } from './store'
-import { Meter } from './ui'
+import { InfoLabel, MASTERED_HINT, Meter } from './ui'
 
 interface Props {
   store: Store
@@ -47,7 +47,7 @@ export function ProgressTab({ store, onPractise, onFullscreen }: Props) {
   return (
     <div className="stack">
       <section className="stack-sm">
-        <h2 className="label">Mastery</h2>
+        <InfoLabel label={<h2 className="label">Mastery</h2>} hint={MASTERED_HINT} />
         <div className="panel">
           {groups.map(({ label, qs }) => {
             const m = qs.filter((q) => isMastered(p.stats[q.id])).length

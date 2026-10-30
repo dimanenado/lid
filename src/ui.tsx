@@ -1,5 +1,5 @@
-import { ReactNode, useEffect, useRef } from 'react'
-import { Check, Languages, MapPin, X } from 'lucide-react'
+import { ReactNode, useEffect, useRef, useState } from 'react'
+import { Check, Info, Languages, MapPin, X } from 'lucide-react'
 import { Question, STATES } from './data'
 import { LANGS, TransLang, useTranslation } from './i18n'
 import type { Store } from './store'
@@ -11,6 +11,25 @@ export function Meter({ value, tone = 'ok', label }: { value: number; tone?: 'ok
   return (
     <div className={`meter meter-${tone}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
       <i style={{ width: `${pct}%` }} />
+    </div>
+  )
+}
+
+/** What "mastered" means; matches isMastered in store.ts. */
+export const MASTERED_HINT = 'A question counts as mastered once you answer it right twice in a row, in practice or in an exam. A wrong answer resets it.'
+
+/** A label with a small info button that shows a short explanation underneath on tap (no hover, so it works on phones). */
+export function InfoLabel({ label, hint }: { label: ReactNode; hint: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="info-label">
+      <div className="info-head">
+        {label}
+        <button className="info-btn" aria-expanded={open} aria-label={open ? 'Hide explanation' : 'What does this mean?'} onClick={() => setOpen(!open)}>
+          <Info size={15} aria-hidden />
+        </button>
+      </div>
+      {open && <p className="info-text">{hint}</p>}
     </div>
   )
 }
