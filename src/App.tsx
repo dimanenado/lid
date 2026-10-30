@@ -1,6 +1,6 @@
 import { ChartNoAxesColumn, House, LucideIcon, MapPin, Search as SearchIcon, Settings, Timer } from 'lucide-react'
 import { ReactNode, useCallback, useEffect, useState } from 'react'
-import { QUESTIONS, STATES, shuffle } from './data'
+import { GENERAL, QUESTIONS, STATES, shuffle, stateQuestions } from './data'
 import { ExamTab } from './Exam'
 import { Learn } from './Learn'
 import { Practice } from './Practice'
@@ -10,7 +10,7 @@ import { SettingsTab } from './SettingsTab'
 import { trackEvent, trackView } from './analytics'
 import { useTheme } from './hooks'
 import { TranslationProvider } from './TranslationProvider'
-import { useProgress } from './store'
+import { Round, fitRound, newRound, useProgress } from './store'
 import { syncOffline } from './offline'
 import { StatePicker } from './ui'
 
@@ -33,7 +33,8 @@ export default function App() {
   const { p, update } = store
   useTheme(p.theme)
   const [tab, setTab] = useState<Tab>(tabFromHash)
-  const [session, setSession] = useState<{ title: string; ids: string[]; n: number } | null>(null)
+  // round: the session continues the saved round from these answers and adds to it
+  const [session, setSession] = useState<{ title: string; ids: string[]; n: number; round?: boolean[] } | null>(null)
   // a running exam or an exam review takes the whole screen
   const [fullscreen, setFullscreen] = useState(false)
   const [picker, setPicker] = useState(false)
@@ -61,6 +62,15 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [fullscreen, tab])
 
+  // keep the round in step with the state's questions
+  const poolIds = [...GENERAL, ...stateQuestions(p.state)].map((q) => q.id)
+  useEffect(() => {
+    if (!p.round) return
+    const fitted = fitRound(p.round, poolIds)
+    if (fitted.ids.join() !== p.round.ids.join() || fitted.results.length !== p.round.results.length) update({ round: fitted })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.state])
+
   const go = (t: Tab) => {
     setTab(t)
     if (location.hash !== `#${t}`) location.hash = t
@@ -77,6 +87,17 @@ export default function App() {
   const practise = (title: string, qs: typeof QUESTIONS, forceShuffle = false) =>
     start(title, (p.shuffle || forceShuffle ? shuffle(qs) : qs).map((q) => q.id))
 
+  const continueRound = () => {
+    let round: Round | undefined = p.round
+    if (!round || round.results.length >= round.ids.length) {
+      round = newRound(poolIds, p.stats, p.shuffle)
+      update({ round })
+    }
+    trackEvent('practice-started', { kind: 'Your round', questions: round.ids.length - round.results.length, translation })
+    setSession((s) => ({ title: 'Your round', ids: round.ids, n: (s?.n ?? 0) + 1, round: round.results }))
+    window.scrollTo({ top: 0 })
+  }
+
   if (!p.onboarded) return <Welcome onPick={(state) => update({ state, onboarded: true })} />
 
   const wrap = (node: ReactNode) => (
@@ -91,6 +112,7 @@ export default function App() {
         key={session.n}
         title={session.title}
         ids={session.ids}
+        round={session.round}
         store={store}
         onExit={() => setSession(null)}
         onRestart={start}
@@ -135,7 +157,7 @@ export default function App() {
       )}
 
       <main className={chrome ? 'page' : undefined}>
-        {tab === 'learn' && <Learn store={store} practise={practise} />}
+        {tab === 'learn' && <Learn store={store} practise={practise} continueRound={continueRound} />}
         {tab === 'exam' && (
           <ExamTab
             store={store}
