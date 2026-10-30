@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { shuffle } from './data'
 import { TransLang, isTransLang } from './i18n'
 
 export interface QStat {
@@ -18,6 +19,13 @@ export interface ExamResult {
   seconds: number
   /** [question id, chosen option or null] in exam order; missing on exams taken before this was saved */
   answers?: [string, number | null][]
+}
+
+/** The saved run through every question for the user's state, picked up with Continue on Learn. */
+export interface Round {
+  ids: string[]
+  /** right or wrong for ids[0..results.length - 1]; the next question is ids[results.length] */
+  results: boolean[]
 }
 
 export type Theme = 'system' | 'light' | 'dark'
@@ -40,6 +48,7 @@ export interface Progress {
   onboarded: boolean
   stats: Record<string, QStat>
   exams: ExamResult[]
+  round?: Round
 }
 
 const KEY = 'lid-prep:v1'
@@ -70,6 +79,24 @@ function load(): Progress {
 export const isMistake = (s?: QStat) => !!s && s.wrong > 0 && s.streak === 0
 export const isMastered = (s?: QStat) => !!s && s.streak >= 2
 
+/** A fresh round over the given questions: the ones never answered come first, each part shuffled if the setting is on. */
+export function newRound(ids: string[], stats: Record<string, QStat>, shuffled: boolean): Round {
+  const order = (a: string[]) => (shuffled ? shuffle(a) : a)
+  return { ids: [...order(ids.filter((id) => !stats[id])), ...order(ids.filter((id) => stats[id]))], results: [] }
+}
+
+/** The round fitted to the current question pool, e.g. after a state change: drops questions not in it and adds new ones at the end. */
+export function fitRound(round: Round, ids: string[]): Round {
+  const pool = new Set(ids)
+  const keep = round.ids.map((id, i) => [id, round.results[i]] as const).filter(([id]) => pool.has(id))
+  const have = new Set(round.ids)
+  const added = shuffle(ids.filter((id) => !have.has(id)))
+  return {
+    ids: [...keep.map(([id]) => id), ...added],
+    results: keep.flatMap(([, r]) => (r === undefined ? [] : [r])),
+  }
+}
+
 export function useProgress() {
   const [p, setP] = useState<Progress>(load)
 
@@ -95,6 +122,12 @@ export function useProgress() {
     })
   }, [])
 
+  /** Add an answer to the round; the question is the next one in it. */
+  const recordRound = useCallback(
+    (ok: boolean) => setP((prev) => (prev.round ? { ...prev, round: { ...prev.round, results: [...prev.round.results, ok] } } : prev)),
+    [],
+  )
+
   const update = useCallback((patch: Partial<Progress>) => setP((prev) => ({ ...prev, ...patch })), [])
 
   const addExam = useCallback(
@@ -102,7 +135,7 @@ export function useProgress() {
     [],
   )
 
-  return { p, record, update, addExam }
+  return { p, record, recordRound, update, addExam }
 }
 
 export type Store = ReturnType<typeof useProgress>

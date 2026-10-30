@@ -8,6 +8,8 @@ import { LangToggle } from './ui'
 interface Props {
   title: string
   ids: string[]
+  /** answers already given in the saved round; set when this session continues it, and new answers are added to it */
+  round?: boolean[]
   store: Store
   onExit: () => void
   /** start a new session, e.g. with the questions missed in this one */
@@ -15,10 +17,10 @@ interface Props {
 }
 
 /** Answer one question at a time with immediate feedback. */
-export function Practice({ title, ids, store, onExit, onRestart }: Props) {
-  const [idx, setIdx] = useState(0)
+export function Practice({ title, ids, round, store, onExit, onRestart }: Props) {
+  const [idx, setIdx] = useState(round?.length ?? 0)
   const [selected, setSelected] = useState<number | null>(null)
-  const [results, setResults] = useState<boolean[]>([])
+  const [results, setResults] = useState<boolean[]>(round ?? [])
 
   const q = BY_ID.get(ids[idx])
   const answered = selected !== null
@@ -30,6 +32,7 @@ export function Practice({ title, ids, store, onExit, onRestart }: Props) {
     setSelected(i)
     const ok = i === q.correct
     store.record(q.id, ok)
+    if (round) store.recordRound(ok)
     setResults((r) => [...r, ok])
   }
 

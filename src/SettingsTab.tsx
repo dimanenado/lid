@@ -47,6 +47,7 @@ export function SettingsTab({ store, onChangeState }: Props) {
         onboarded: true,
         stats: data.stats,
         exams: data.exams ?? [],
+        round: Array.isArray(data.round?.ids) && Array.isArray(data.round?.results) ? data.round : undefined,
       })
       toast('Progress imported')
     } catch {
@@ -63,7 +64,7 @@ export function SettingsTab({ store, onChangeState }: Props) {
         danger: true,
       })
     ) {
-      update({ stats: {}, exams: [] })
+      update({ stats: {}, exams: [], round: undefined })
       toast('Progress reset')
     }
   }

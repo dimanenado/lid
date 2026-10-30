@@ -1,5 +1,6 @@
-import { ArrowRight, BookOpen, Flame, Landmark, RotateCcw, Scale, Shuffle, Sparkles, Users } from 'lucide-react'
+import { ArrowRight, BookOpen, Flame, Landmark, RotateCcw, Scale, Users } from 'lucide-react'
 import { GENERAL, QUESTIONS, STATES, TOPIC_SHORT, stateQuestions } from './data'
+import { useConfirm } from './hooks'
 import { isMastered, isMistake, Store } from './store'
 import { InfoLabel, MASTERED_HINT, Meter } from './ui'
 
@@ -8,10 +9,13 @@ const TOPIC_ICON = { politics: Scale, history: Landmark, society: Users }
 interface Props {
   store: Store
   practise: (title: string, qs: typeof QUESTIONS, forceShuffle?: boolean) => void
+  /** continue the saved round, or start a new one when there is none or it is finished */
+  continueRound: () => void
 }
 
-export function Learn({ store, practise }: Props) {
+export function Learn({ store, practise, continueRound }: Props) {
   const { p } = store
+  const [ask, confirmEl] = useConfirm()
   const pool = [...GENERAL, ...stateQuestions(p.state)]
   const mastered = pool.filter((q) => isMastered(p.stats[q.id])).length
   const mistakes = pool.filter((q) => isMistake(p.stats[q.id]))
@@ -24,12 +28,22 @@ export function Learn({ store, practise }: Props) {
     .slice(0, 20)
   const mostMisses = missedMost.length ? p.stats[missedMost[0].id].wrong : 0
 
-  // one recommended next step: mistakes first, then new questions, then everything shuffled
-  const next = mistakes.length
-    ? { label: `Review ${mistakes.length} mistake${mistakes.length === 1 ? '' : 's'}`, go: () => practise('Review mistakes', mistakes, true) }
-    : unseen.length
-      ? { label: `Start ${Math.min(unseen.length, 20)} new questions`, go: () => practise('New questions', unseen.slice(0, 20), true) }
-      : { label: 'Practise everything, shuffled', go: () => practise('All questions', pool, true) }
+  // the round as App fits it to this state; before the first Start it covers the whole pool
+  const total = p.round?.ids.length || pool.length
+  const answered = p.round?.results.length ?? 0
+  const right = p.round?.results.filter(Boolean).length ?? 0
+  const done = answered >= total
+
+  const startOver = async () => {
+    if (
+      await ask({
+        title: 'Start a new round?',
+        body: 'Your right and wrong counts for this round go back to zero. Mastered questions and mistakes stay as they are.',
+        ok: 'Start over',
+      })
+    )
+      store.update({ round: undefined })
+  }
 
   const tiles = [
     ...(['politics', 'history', 'society'] as const).map((t) => ({
@@ -43,22 +57,70 @@ export function Learn({ store, practise }: Props) {
 
   return (
     <div className="stack">
+      {confirmEl}
       <section className="hero">
-        <InfoLabel label={<span className="hero-label">Mastered</span>} hint={MASTERED_HINT} />
+        <span className="hero-label">{done ? 'Round complete' : 'Your round through all questions'}</span>
         <div className="hero-num">
-          {mastered} <small>/ {pool.length}</small>
+          {answered} <small>/ {total} answered</small>
         </div>
-        <div className="hero-meter" aria-label={`${mastered} of ${pool.length} mastered`}>
-          <i style={{ width: `${(mastered / pool.length) * 100}%` }} />
+        <div className="hero-meter" aria-label={`${answered} of ${total} answered`}>
+          <i style={{ width: `${(answered / total) * 100}%` }} />
         </div>
-        <div className="hero-stats">
-          <span>{pool.length - unseen.length} seen</span>
-          <span>{mistakes.length} to review</span>
-          <span>{p.exams[0] ? `Last exam ${p.exams[0].score}/${p.exams[0].total}` : 'No exam yet'}</span>
+        {answered > 0 && (
+          <div className="hero-stats">
+            <span>✓ {right} right</span>
+            <span>✗ {answered - right} wrong</span>
+          </div>
+        )}
+        <div className="hero-actions">
+          <button className="btn btn-on-accent btn-lg" onClick={continueRound}>
+            {done ? 'Start a new round' : answered ? 'Continue' : 'Start'} <ArrowRight size={18} aria-hidden />
+          </button>
+          {answered > 0 && !done && (
+            <button className="btn btn-outline-accent" onClick={startOver}>
+              <RotateCcw size={16} aria-hidden /> Start over
+            </button>
+          )}
         </div>
-        <button className="btn btn-on-accent" onClick={next.go}>
-          {next.label} <ArrowRight size={18} aria-hidden />
-        </button>
+      </section>
+
+      <section className="stack-sm">
+        <h2 className="label">Overall</h2>
+        <div className="overall">
+          <div className="overall-head">
+            <InfoLabel label={<b>Mastered</b>} hint={MASTERED_HINT} />
+            <span className="overall-num">
+              {mastered} <small>/ {pool.length}</small>
+            </span>
+          </div>
+          <Meter value={mastered / pool.length} label={`${mastered} of ${pool.length} mastered`} />
+          <small className="muted">
+            {pool.length - unseen.length} seen · {mistakes.length} mistake{mistakes.length === 1 ? '' : 's'}
+            {p.exams[0] ? ` · last exam ${p.exams[0].score}/${p.exams[0].total}` : ''}
+          </small>
+        </div>
+        <div className="list">
+          <button className="list-row" disabled={!mistakes.length} onClick={() => practise('Review mistakes', mistakes, true)}>
+            <RotateCcw size={18} aria-hidden className="list-icon" />
+            <span className="row-main">
+              <b>Practise mistakes</b>
+              <small>{mistakes.length ? `${mistakes.length} answered wrong last time` : 'No mistakes to review'}</small>
+            </span>
+            <ArrowRight size={18} aria-hidden className="muted" />
+          </button>
+          <button className="list-row" disabled={!missedMost.length} onClick={() => practise('Missed most often', missedMost)}>
+            <Flame size={18} aria-hidden className="list-icon" />
+            <span className="row-main">
+              <b>Missed most often</b>
+              <small>
+                {missedMost.length
+                  ? `${missedMost.length} question${missedMost.length === 1 ? '' : 's'}, missed up to ${mostMisses} time${mostMisses === 1 ? '' : 's'}`
+                  : 'Nothing missed yet'}
+              </small>
+            </span>
+            <ArrowRight size={18} aria-hidden className="muted" />
+          </button>
+        </div>
       </section>
 
       <section className="stack-sm">
@@ -82,47 +144,6 @@ export function Learn({ store, practise }: Props) {
         </div>
       </section>
 
-      <section className="stack-sm">
-        <h2 className="label">Quick start</h2>
-        <div className="list">
-          <button className="list-row" disabled={!unseen.length} onClick={() => practise('New questions', unseen)}>
-            <Sparkles size={18} aria-hidden className="list-icon" />
-            <span className="row-main">
-              <b>New questions</b>
-              <small>{unseen.length ? `${unseen.length} not seen yet` : 'You have seen every question'}</small>
-            </span>
-            <ArrowRight size={18} aria-hidden className="muted" />
-          </button>
-          <button className="list-row" disabled={!mistakes.length} onClick={() => practise('Review mistakes', mistakes, true)}>
-            <RotateCcw size={18} aria-hidden className="list-icon" />
-            <span className="row-main">
-              <b>Mistakes</b>
-              <small>{mistakes.length ? `${mistakes.length} to review` : 'No mistakes to review'}</small>
-            </span>
-            <ArrowRight size={18} aria-hidden className="muted" />
-          </button>
-          <button className="list-row" disabled={!missedMost.length} onClick={() => practise('Missed most often', missedMost)}>
-            <Flame size={18} aria-hidden className="list-icon" />
-            <span className="row-main">
-              <b>Missed most often</b>
-              <small>
-                {missedMost.length
-                  ? `${missedMost.length} question${missedMost.length === 1 ? '' : 's'}, missed up to ${mostMisses} time${mostMisses === 1 ? '' : 's'}`
-                  : 'Nothing missed yet'}
-              </small>
-            </span>
-            <ArrowRight size={18} aria-hidden className="muted" />
-          </button>
-          <button className="list-row" onClick={() => practise('All 300 general questions', GENERAL)}>
-            <Shuffle size={18} aria-hidden className="list-icon" />
-            <span className="row-main">
-              <b>All general questions</b>
-              <small>300 questions{p.shuffle ? ', shuffled' : ', in catalog order'}</small>
-            </span>
-            <ArrowRight size={18} aria-hidden className="muted" />
-          </button>
-        </div>
-      </section>
     </div>
   )
 }
